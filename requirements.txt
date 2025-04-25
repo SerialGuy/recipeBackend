@@ -9,4 +9,5 @@ tqdm
 lmdb
 tensorflow
 flask
+flask_cors
 tensorboardX
