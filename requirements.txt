@@ -1,8 +1,8 @@
 numpy
 scipy
 matplotlib
-torch==0.4.1
-torchvision==0.2.1
+torch
+torchvision
 nltk
 Pillow
 tqdm
