@@ -2,13 +2,6 @@
     "version": 2,
     "builds": [
       {
-        "src": "build.sh",
-        "use": "@vercel/static-build",
-        "config": {
-          "distDir": "."
-        }
-      },
-      {
         "src": "flaskapp.py",
         "use": "@vercel/python"
       }
@@ -18,9 +11,6 @@
         "src": "/(.*)",
         "dest": "flaskapp.py"
       }
-    ],
-    "env": {
-      "VERCEL_DEBUG": "1"
-    }
+    ]
 }
   
