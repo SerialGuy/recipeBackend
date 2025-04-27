@@ -8,7 +8,8 @@
           "maxLambdaSize": "50mb",
           "includeFiles": [
             "data/**"
-          ]
+          ],
+          "runtime": "python3.9"
         }
       }
     ],
@@ -19,8 +20,7 @@
       }
     ],
     "env": {
-      "PYTHONPATH": ".",
-      "VERCEL_PYTHON_RUNTIME": "python3.9"
+      "PYTHONPATH": "."
     }
 }
   
