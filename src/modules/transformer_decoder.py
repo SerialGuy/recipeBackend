@@ -13,8 +13,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.utils import _single
-import modules.utils as utils
-from modules.multihead_attention import MultiheadAttention
+import src.modules.utils as utils
+from src.modules.multihead_attention import MultiheadAttention
 import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import copy

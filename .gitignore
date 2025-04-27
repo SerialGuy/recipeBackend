@@ -5,5 +5,8 @@ __pycache__/
 
 
 __pypackages__/
+demo_imgs/
 
+testbackend.py
 
+ngrok.exe

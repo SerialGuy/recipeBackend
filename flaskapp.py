@@ -3,20 +3,31 @@ import torch
 import pickle
 from torchvision import transforms
 from PIL import Image
-from model import get_model
-from utils.output_utils import prepare_output
-from args import get_parser
+from src.model import get_model
+from src.utils.output_utils import prepare_output
+from src.args import get_parser
 import os
 from werkzeug.utils import secure_filename
 import base64
 from io import BytesIO
+import requests
 from flask_cors import CORS 
 
 app = Flask(__name__)
 CORS(app) 
+
+MODEL_URL = "https://dl.fbaipublicfiles.com/inversecooking/modelbest.ckpt"
+MODEL_PATH = "data/modelbest.ckpt"
+
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        print("Downloading model...")
+        response = requests.get(MODEL_URL)
+        with open(MODEL_PATH, "wb") as f:
+            f.write(response.content)
+        print("Model downloaded.")
 # Initialize model and vocabularies once when the server starts
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-data_dir = os.path.join(base_dir, 'data')
+data_dir = os.path.join('./', 'data')
 
 ingr_vocab = pickle.load(open(os.path.join(data_dir, 'ingr_vocab.pkl'), 'rb'))
 instr_vocab = pickle.load(open(os.path.join(data_dir, 'instr_vocab.pkl'), 'rb'))
@@ -31,6 +42,7 @@ args = get_parser()
 args.maxseqlen = 15
 args.ingrs_only = False
 model = get_model(args, len(ingr_vocab), len(instr_vocab))
+download_model()
 model_path = os.path.join(data_dir, 'modelbest.ckpt')
 model.load_state_dict(torch.load(model_path, map_location=map_loc))
 model.to(device)
@@ -98,6 +110,15 @@ def predict():
 def health_check():
     return jsonify({'status': 'healthy'})
 
+@app.route('/')
+def home():
+    return "Hello, Flask running in Vercel!"
+
+
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    # Get port from environment variable or use default
+    port = int(os.environ.get("PORT", 5000))
+    # Get host from environment variable or use default
+    host = os.environ.get("HOST", "0.0.0.0")
+    app.run(host=host, port=port)
+

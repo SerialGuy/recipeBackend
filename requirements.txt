@@ -1,8 +1,6 @@
 numpy
 scipy
 matplotlib
-torch
-torchvision
 nltk
 Pillow
 tqdm
@@ -11,3 +9,4 @@ tensorflow
 flask
 flask_cors
 tensorboardX
+flask-cloudflare
