@@ -12,6 +12,11 @@ import base64
 from io import BytesIO
 import requests
 from flask_cors import CORS 
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app) 
@@ -27,27 +32,35 @@ ingr_vocab = None
 instr_vocab = None
 transform = None
 device = None
+initialization_error = None
 
 def initialize_model():
-    global model, ingr_vocab, instr_vocab, transform, device
+    global model, ingr_vocab, instr_vocab, transform, device, initialization_error
     
     if model is not None:  # Already initialized
         return
         
     try:
+        logger.info("Starting model initialization...")
+        
         # Create data directory if it doesn't exist
         os.makedirs(data_dir, exist_ok=True)
+        logger.info("Created data directory")
         
         # Load vocabularies
+        logger.info("Loading vocabularies...")
         ingr_vocab = pickle.load(open(os.path.join(data_dir, 'ingr_vocab.pkl'), 'rb'))
         instr_vocab = pickle.load(open(os.path.join(data_dir, 'instr_vocab.pkl'), 'rb'))
+        logger.info("Vocabularies loaded")
         
         # Set device configuration
         use_gpu = False
         device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
         map_loc = None if torch.cuda.is_available() and use_gpu else 'cpu'
+        logger.info(f"Using device: {device}")
         
         # Initialize model
+        logger.info("Initializing model architecture...")
         args = get_parser()
         args.maxseqlen = 15
         args.ingrs_only = False
@@ -55,16 +68,21 @@ def initialize_model():
         
         # Download model if needed
         if not os.path.exists(MODEL_PATH):
-            print("Downloading model...")
-            response = requests.get(MODEL_URL)
+            logger.info("Downloading model...")
+            response = requests.get(MODEL_URL, stream=True)
+            total_size = int(response.headers.get('content-length', 0))
+            block_size = 1024
             with open(MODEL_PATH, "wb") as f:
-                f.write(response.content)
-            print("Model downloaded.")
+                for data in response.iter_content(block_size):
+                    f.write(data)
+            logger.info("Model downloaded successfully")
             
         # Load model weights
+        logger.info("Loading model weights...")
         model.load_state_dict(torch.load(MODEL_PATH, map_location=map_loc))
         model.to(device)
         model.eval()
+        logger.info("Model loaded and ready")
         
         # Initialize image transformations
         transf_list_batch = [
@@ -74,14 +92,19 @@ def initialize_model():
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         ]
         transform = transforms.Compose(transf_list_batch)
+        logger.info("Initialization complete")
         
     except Exception as e:
-        print(f"Error initializing model: {str(e)}")
+        logger.error(f"Error during initialization: {str(e)}")
+        initialization_error = str(e)
         raise
 
 @app.before_first_request
 def before_first_request():
-    initialize_model()
+    try:
+        initialize_model()
+    except Exception as e:
+        logger.error(f"Failed to initialize model: {str(e)}")
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -134,6 +157,11 @@ def predict():
 
 @app.route('/health', methods=['GET'])
 def health_check():
+    if initialization_error:
+        return jsonify({
+            'status': 'error',
+            'message': f'Initialization failed: {initialization_error}'
+        }), 500
     return jsonify({'status': 'healthy'})
 
 @app.route('/')
