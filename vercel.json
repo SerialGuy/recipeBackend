@@ -3,9 +3,12 @@
     "builds": [
       {
         "src": "flaskapp.py",
-        "use": "@vercel/python",
+        "use": "@vercel/python@2.0.0",
         "config": {
-          "maxLambdaSize": "50mb"
+          "maxLambdaSize": "50mb",
+          "includeFiles": [
+            "data/**"
+          ]
         }
       }
     ],
@@ -16,7 +19,8 @@
       }
     ],
     "env": {
-      "PYTHONPATH": "."
+      "PYTHONPATH": ".",
+      "VERCEL_PYTHON_RUNTIME": "python3.9"
     }
 }
   

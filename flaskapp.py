@@ -13,6 +13,7 @@ from io import BytesIO
 import requests
 from flask_cors import CORS 
 import logging
+import tempfile
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,7 @@ CORS(app)
 
 # Configuration
 MODEL_URL = "https://dl.fbaipublicfiles.com/inversecooking/modelbest.ckpt"
-MODEL_PATH = "data/modelbest.ckpt"
+MODEL_PATH = os.path.join(tempfile.gettempdir(), 'modelbest.ckpt')  # Use temp directory
 data_dir = os.path.join('./', 'data')
 
 # Global variables that will be initialized on first request
@@ -33,6 +34,24 @@ instr_vocab = None
 transform = None
 device = None
 initialization_error = None
+
+def download_model_with_progress(url, destination):
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        
+        total_size = int(response.headers.get('content-length', 0))
+        block_size = 1024 * 1024  # 1MB chunks
+        
+        logger.info(f"Downloading model to {destination}")
+        with open(destination, 'wb') as f:
+            for data in response.iter_content(block_size):
+                f.write(data)
+        logger.info("Model download completed")
+        return True
+    except Exception as e:
+        logger.error(f"Error downloading model: {str(e)}")
+        return False
 
 def initialize_model():
     global model, ingr_vocab, instr_vocab, transform, device, initialization_error
@@ -68,14 +87,8 @@ def initialize_model():
         
         # Download model if needed
         if not os.path.exists(MODEL_PATH):
-            logger.info("Downloading model...")
-            response = requests.get(MODEL_URL, stream=True)
-            total_size = int(response.headers.get('content-length', 0))
-            block_size = 1024
-            with open(MODEL_PATH, "wb") as f:
-                for data in response.iter_content(block_size):
-                    f.write(data)
-            logger.info("Model downloaded successfully")
+            if not download_model_with_progress(MODEL_URL, MODEL_PATH):
+                raise Exception("Failed to download model")
             
         # Load model weights
         logger.info("Loading model weights...")
