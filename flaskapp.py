@@ -16,46 +16,72 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app) 
 
+# Configuration
 MODEL_URL = "https://dl.fbaipublicfiles.com/inversecooking/modelbest.ckpt"
 MODEL_PATH = "data/modelbest.ckpt"
-
-def download_model():
-    if not os.path.exists(MODEL_PATH):
-        print("Downloading model...")
-        response = requests.get(MODEL_URL)
-        with open(MODEL_PATH, "wb") as f:
-            f.write(response.content)
-        print("Model downloaded.")
-# Initialize model and vocabularies once when the server starts
 data_dir = os.path.join('./', 'data')
 
-ingr_vocab = pickle.load(open(os.path.join(data_dir, 'ingr_vocab.pkl'), 'rb'))
-instr_vocab = pickle.load(open(os.path.join(data_dir, 'instr_vocab.pkl'), 'rb'))
+# Global variables that will be initialized on first request
+model = None
+ingr_vocab = None
+instr_vocab = None
+transform = None
+device = None
 
-# Set device configuration
-use_gpu = False
-device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
-map_loc = None if torch.cuda.is_available() and use_gpu else 'cpu'
+def initialize_model():
+    global model, ingr_vocab, instr_vocab, transform, device
+    
+    if model is not None:  # Already initialized
+        return
+        
+    try:
+        # Create data directory if it doesn't exist
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Load vocabularies
+        ingr_vocab = pickle.load(open(os.path.join(data_dir, 'ingr_vocab.pkl'), 'rb'))
+        instr_vocab = pickle.load(open(os.path.join(data_dir, 'instr_vocab.pkl'), 'rb'))
+        
+        # Set device configuration
+        use_gpu = False
+        device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
+        map_loc = None if torch.cuda.is_available() and use_gpu else 'cpu'
+        
+        # Initialize model
+        args = get_parser()
+        args.maxseqlen = 15
+        args.ingrs_only = False
+        model = get_model(args, len(ingr_vocab), len(instr_vocab))
+        
+        # Download model if needed
+        if not os.path.exists(MODEL_PATH):
+            print("Downloading model...")
+            response = requests.get(MODEL_URL)
+            with open(MODEL_PATH, "wb") as f:
+                f.write(response.content)
+            print("Model downloaded.")
+            
+        # Load model weights
+        model.load_state_dict(torch.load(MODEL_PATH, map_location=map_loc))
+        model.to(device)
+        model.eval()
+        
+        # Initialize image transformations
+        transf_list_batch = [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ]
+        transform = transforms.Compose(transf_list_batch)
+        
+    except Exception as e:
+        print(f"Error initializing model: {str(e)}")
+        raise
 
-# Initialize model
-args = get_parser()
-args.maxseqlen = 15
-args.ingrs_only = False
-model = get_model(args, len(ingr_vocab), len(instr_vocab))
-download_model()
-model_path = os.path.join(data_dir, 'modelbest.ckpt')
-model.load_state_dict(torch.load(model_path, map_location=map_loc))
-model.to(device)
-model.eval()
-
-# Image transformations
-transf_list_batch = [
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-]
-transform = transforms.Compose(transf_list_batch)
+@app.before_first_request
+def before_first_request():
+    initialize_model()
 
 @app.route('/predict', methods=['POST'])
 def predict():
