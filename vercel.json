@@ -2,15 +2,15 @@
     "version": 2,
     "builds": [
       {
-        "src": "flaskapp.py",
-        "use": "@vercel/python@2.0.0",
+        "src": "build.sh",
+        "use": "@vercel/static-build",
         "config": {
-          "maxLambdaSize": "50mb",
-          "includeFiles": [
-            "data/**"
-          ],
-          "runtime": "python3.9"
+          "distDir": "."
         }
+      },
+      {
+        "src": "flaskapp.py",
+        "use": "@vercel/python"
       }
     ],
     "routes": [
@@ -20,7 +20,7 @@
       }
     ],
     "env": {
-      "PYTHONPATH": "."
+      "VERCEL_DEBUG": "1"
     }
 }
   

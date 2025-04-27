@@ -14,10 +14,32 @@ import requests
 from flask_cors import CORS 
 import logging
 import tempfile
+import sys
+import platform
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure detailed logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+
+# Log system information
+logger.info("="*50)
+logger.info("System Information:")
+logger.info(f"Python Version: {sys.version}")
+logger.info(f"Platform: {platform.platform()}")
+logger.info(f"Processor: {platform.processor()}")
+logger.info(f"Machine: {platform.machine()}")
+logger.info(f"System: {platform.system()}")
+logger.info(f"Release: {platform.release()}")
+logger.info("="*50)
+
+# Log environment variables
+logger.info("Environment Variables:")
+for key in ['PYTHONPATH', 'VERCEL', 'VERCEL_ENV', 'VERCEL_REGION']:
+    value = os.environ.get(key, 'Not set')
+    logger.info(f"{key}: {value}")
 
 app = Flask(__name__)
 CORS(app) 
